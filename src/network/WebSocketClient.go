@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"golang.org/x/net/websocket"
 )
 
 type IWebSocketClient interface {
@@ -15,7 +14,6 @@ type WebSocketClient struct {
 	Socket
 	m_pServer     *WebSocket
 	m_WriteChan   chan []byte
-	m_WebConn *websocket.Conn
 }
 
 func (this *WebSocketClient) Start() bool {
@@ -41,12 +39,16 @@ func (this *WebSocketClient) Send(buff []byte) int {
 		}
 	}()
 
+	if this.m_Conn == nil{
+		return 0
+	}
+
 	if len(buff) > this.m_MaxSendBufferSize{
 		log.Print(" SendError size",len(buff))
 		return  0
 	}
 
-	n, err := this.m_WebConn.Write(buff)
+	n, err := this.m_Conn.Write(buff)
 	handleError(err)
 	if n > 0 {
 		return n
@@ -72,10 +74,10 @@ func (this *WebSocketClient) OnNetFail(error int) {
 }
 
 func (this *WebSocketClient) Close() {
-	if this.m_WebConn != nil{
-		this.m_WebConn.Close()
+	if this.m_Conn != nil{
+		this.m_Conn.Close()
 	}
-	this.m_WebConn = nil
+	this.m_Conn = nil
 	close(this.m_WriteChan)
 	this.Socket.Close()
 	if this.m_pServer != nil {
@@ -99,7 +101,7 @@ func (this *WebSocketClient) SendNoBlock(buff []byte) {
 }
 
 func wserverclientRoutine(pClient *WebSocketClient) bool {
-	if pClient.m_WebConn == nil {
+	if pClient.m_Conn == nil {
 		return false
 	}
 
@@ -109,20 +111,14 @@ func wserverclientRoutine(pClient *WebSocketClient) bool {
 		}
 
 		var buff = make([]byte, pClient.m_MaxReceiveBufferSize)
-		n, err := pClient.m_WebConn.Read(buff)
+		n, err := pClient.m_Conn.Read(buff)
 		if err == io.EOF {
-			fmt.Printf("远程链接：%s已经关闭！\n", pClient.m_WebConn.RemoteAddr().String())
+			fmt.Printf("远程链接：%s已经关闭！\n", pClient.m_Conn.RemoteAddr().String())
 			pClient.OnNetFail(0)
 			break
 		}
 		if err != nil {
 			handleError(err)
-			pClient.OnNetFail(0)
-			break
-		}
-
-		if string(buff[:n]) == "exit" {
-			fmt.Printf("远程链接：%s退出！\n", pClient.m_WebConn.RemoteAddr().String())
 			pClient.OnNetFail(0)
 			break
 		}

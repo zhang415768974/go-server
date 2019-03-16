@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 )
 
 const (
@@ -40,7 +41,7 @@ func (this *ServerSocketClient) Start() bool {
 
 	this.m_WriteChan = make(chan []byte, MAX_WRITE_CHAN)
 	this.m_nState = SSF_CONNECT
-	this.m_Conn.SetNoDelay(true)
+	this.m_Conn.(*net.TCPConn).SetNoDelay(true)
 	//this.m_Conn.SetKeepAlive(true)
 	//this.m_Conn.SetKeepAlivePeriod(5*time.Second)
 	go serverclientRoutine(this)
@@ -139,11 +140,6 @@ func serverclientRoutine(pClient *ServerSocketClient) bool {
 		}
 		if err != nil {
 			handleError(err)
-			pClient.OnNetFail(0)
-			break
-		}
-		if string(buff[:n]) == "exit" {
-			fmt.Printf("远程链接：%s退出！\n", pClient.m_Conn.RemoteAddr().String())
 			pClient.OnNetFail(0)
 			break
 		}

@@ -1,11 +1,11 @@
 package network
 
 import (
+	"gonet/base"
 	"fmt"
 	"io"
 	"log"
 	"net"
-	"base"
 )
 
 type IClientSocket interface {
@@ -37,7 +37,7 @@ func (this *ClientSocket) Start() bool {
 	}
 
 	if this.Connect(){
-		this.m_Conn.SetNoDelay(true)
+		this.m_Conn.(*net.TCPConn).SetNoDelay(true)
 		go clientRoutine(this)
 	}
 	//延迟，监听关闭
@@ -66,6 +66,10 @@ func (this *ClientSocket) Send(buff []byte) int {
 			fmt.Println("ClientSocket Send", err)
 		}
 	}()
+
+	if this.m_Conn == nil{
+		return 0
+	}
 
 	n, err := this.m_Conn.Write(buff)
 	handleError(err)
@@ -138,11 +142,6 @@ func clientRoutine(pClient *ClientSocket) bool {
 			handleError(err)
 			pClient.OnNetFail(0)
 			break;
-		}
-		if string(buff[:n]) == "exit" {
-			fmt.Printf("远程链接：%s退出！\n", pClient.m_Conn.RemoteAddr().String())
-			pClient.OnNetFail(0)
-			break
 		}
 		if n > 0 {
 			pClient.ReceivePacket(pClient.m_ClientId, buff[:n])

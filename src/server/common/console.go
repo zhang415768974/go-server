@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"bufio"
 	"os"
-	"actor"
+	"gonet/actor"
 	"strings"
+	"time"
 )
 
 func StartConsole(pCmd actor.IActor) {
@@ -66,6 +67,7 @@ func consoleroutine(pCmd actor.IActor) {
 		reader := bufio.NewReader(os.Stdin)
 		command, _, _ = reader.ReadLine()
 		ParseConsole(pCmd, command)
+		time.Sleep(100 * time.Millisecond)
 	}
 }
 

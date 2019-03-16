@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"github.com/golang/protobuf/proto"
-	"base"
+	"gonet/base"
 	"strings"
 	"log"
 )
@@ -15,50 +15,53 @@ var(
 	Packet_CreateFactorInit bool
 )
 
-func parseTypeStruct(message interface{}, packetHead *Ipacket) {
+func parseTypeElem(val reflect.Value, packetHead **Ipacket) {
+	sType := strings.ToLower(val.Type().String())
+	index := strings.Index(sType, ".")
+	if index!= -1{
+		sType = sType[:index]
+	}
+
+	switch sType {
+	case "*message":
+		if !val.IsNil(){
+			value := val.Elem().Interface()
+			parseTypeStruct(value, packetHead)
+		}
+	}
+}
+
+func setPacketHead(packetHead **Ipacket, TypeName string, protoVal reflect.Value) bool{
+	if TypeName == "PacketHead"{
+		*packetHead = protoVal.Interface().(*Ipacket)
+		//*packetHead.DestServerType = *protoVal.Elem().FieldByName("DestServerType").Interface().(*int32)
+		//*packetHead.Stx = *protoVal.Elem().FieldByName("Stx").Interface().(*int32)
+		//*packetHead.Ckx = *protoVal.Elem().FieldByName("Ckx").Interface().(*int32)
+		//*packetHead.Id = *protoVal.Elem().FieldByName("Id").Interface().(*int64)
+	}else{
+		return false
+	}
+	/*if TypeName == "DestServerType"{
+		*packetHead.DestServerType = *protoVal.Interface().(*int32)
+	} else if TypeName == "Stx"{
+		*packetHead.Stx =  *protoVal.Interface().(*int32)
+	} else if TypeName == "Ckx"{
+		*packetHead.Ckx = *protoVal.Interface().(*int32)
+	} else if TypeName == "Id"{
+		*packetHead.Id = *protoVal.Interface().(*int64)
+	}else {
+		return false
+	}*/
+
+	return true
+}
+
+func parseTypeStruct(message interface{}, packetHead **Ipacket) {
 	defer func() {
 		if err := recover(); err != nil {
 			fmt.Println("GetPakcetHead", err)
 		}
 	}()
-
-	parseTypeElem := func (val reflect.Value, packetHead *Ipacket) {
-		/*defer func() {
-			if err := recover(); err != nil {
-				fmt.Println("GetPakcetHead", err)
-			}
-		}()*/
-
-		sType := strings.ToLower(val.Type().String())
-		index := strings.Index(sType, ".")
-		if index!= -1{
-			sType = sType[:index]
-		}
-
-		switch sType {
-		case "*message":
-			if !val.IsNil(){
-				value := val.Elem().Interface()
-				parseTypeStruct(value, packetHead)
-			}
-		}
-	}
-
-	setPacketHead := func(packetHead *Ipacket, TypeName string, protoVal reflect.Value) bool{
-		if TypeName == "DestServerType"{
-			*packetHead.DestServerType = *protoVal.Interface().(*int32)
-		} else if TypeName == "Stx"{
-			*packetHead.Stx =  *protoVal.Interface().(*int32)
-		} else if TypeName == "Ckx"{
-			*packetHead.Ckx = *protoVal.Interface().(*int32)
-		} else if TypeName == "Id"{
-			*packetHead.Id = *protoVal.Interface().(*int32)
-		}else {
-			return false
-		}
-
-		return true
-	}
 
 	protoType := reflect.TypeOf(message)
 	protoVal := reflect.ValueOf(message)
@@ -70,22 +73,24 @@ func parseTypeStruct(message interface{}, packetHead *Ipacket) {
 	for i := 0; i < protoType.NumField(); i++{
 		if !setPacketHead(packetHead, protoType.Field(i).Name, protoVal.Field(i)){
 			parseTypeElem(protoVal.Field(i), packetHead)
+		}else{
+			break
 		}
 	}
 }
 
 func GetPakcetHead(message interface{}) *Ipacket{
 	packetHead := BuildPacketHead( 0, 0)
-	parseTypeStruct(message, packetHead)
+	parseTypeStruct(message, &packetHead)
 	return packetHead
 }
 
-func BuildPacketHead(id int, destservertype int) *Ipacket{
+func BuildPacketHead(id int64, destservertype int) *Ipacket{
 	ipacket := &Ipacket{
 		Stx:	proto.Int32(Default_Ipacket_Stx),
 		DestServerType:	proto.Int32(int32(destservertype)),
 		Ckx:	proto.Int32(Default_Ipacket_Ckx),
-		Id:	proto.Int32(int32(id)),
+		Id:	proto.Int64(id),
 	}
 	return ipacket
 }
@@ -137,7 +142,7 @@ func GetProtoBufPacket(packet proto.Message, bitstream *base.BitStream) bool {
 		}
 		switch sType {
 		case "*message":
-			bitstream.WriteInt(31, 8)
+			bitstream.WriteInt(120, 8)
 			bitstream.WriteString(packet.(proto.Message).String())
 		default:
 			log.Printf("packet params type not supported", packet, sType)
@@ -177,6 +182,7 @@ func GetPakcet(packetId uint32) proto.Message{
 		RegisterPacket(&C_W_Game_LoginRequset{})
 		RegisterPacket(&C_W_LoginCopyMap{})
 		RegisterPacket(&C_W_Move{})
+		RegisterPacket(&C_W_ChatMessage{})
 		// test for client
 		RegisterPacket(&W_C_SelectPlayerResponse{})
 		RegisterPacket(&W_C_CreatePlayerResponse{})
@@ -185,6 +191,7 @@ func GetPakcet(packetId uint32) proto.Message{
 		RegisterPacket(&W_C_ADD_SIMOBJ{})
 		RegisterPacket(&A_C_LoginRequest{})
 		RegisterPacket(&A_C_RegisterResponse{})
+		RegisterPacket(&W_C_ChatMessage{})
 		Packet_CreateFactorInit = true
 	}
 

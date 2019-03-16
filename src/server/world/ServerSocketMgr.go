@@ -1,10 +1,10 @@
 package world
 
 import (
-	"actor"
-	"base"
-	"message"
-	"server/common"
+	"gonet/actor"
+	"gonet/base"
+	"gonet/message"
+	"gonet/server/common"
 	"sync"
 )
 
@@ -96,13 +96,7 @@ func (this *ServerSocketManager) Init(num int){
 		this.ReleaseServerMap(socketid, false)
 	})
 
-	this.RegisterCall("CONNECT", func(nType int, Ip string, Port int) {
-		pServerInfo := new(common.ServerInfo)
-		pServerInfo.SocketId = this.GetSocketId()
-		pServerInfo.Type = nType
-		pServerInfo.Ip = Ip
-		pServerInfo.Port = Port
-
+	this.RegisterCall("CONNECT", func(pServerInfo *common.ServerInfo) {
 		this.AddServerMap(pServerInfo)
 	})
 	this.Actor.Start()

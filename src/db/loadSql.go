@@ -1,6 +1,6 @@
 package db
 import (
-	"base"
+	"gonet/base"
 	"reflect"
 	"fmt"
 	"strings"
@@ -11,8 +11,8 @@ import (
 const(
 	load_sql = "'%s',"
 	load_sqlarray = "'%s',"
-	load_sqlname = "%s,"
-	load_sqlarrayname = "%s%d,"
+	load_sqlname = "`%s`,"
+	load_sqlarrayname = "`%s%d`,"
 )
 
 func getLoadSql(classField reflect.StructField, classVal reflect.Value) (bool,string,string) {
@@ -131,10 +131,12 @@ func getLoadSql(classField reflect.StructField, classVal reflect.Value) (bool,st
 		sqlvalue += fmt.Sprintf(load_sql, strconv.FormatUint(uint64(value),10))
 		sqlname += fmt.Sprintf(load_sqlname, classType)
 	case "*struct":
-		value := classVal.Elem().Interface()
-		n,p := parseLoadSql(value)
-		sqlname += n
-		sqlvalue += p
+		if !classVal.IsNil() {
+			value := classVal.Elem().Interface()
+			n, p := parseLoadSql(value)
+			sqlname += n
+			sqlvalue += p
+		}
 	case "float64":
 		sqlvalue += fmt.Sprintf(load_sql, strconv.FormatFloat(classVal.Float(), 'f', -1, 64))
 		sqlname += fmt.Sprintf(load_sqlname, classType)
@@ -226,9 +228,14 @@ func getLoadSql(classField reflect.StructField, classVal reflect.Value) (bool,st
 		if !classVal.IsNil() {
 			value = classVal.Interface().([]uint8)
 		}
-		for i,v := range value{
-			sqlvalue += fmt.Sprintf(load_sqlarray, strconv.FormatUint(uint64(v), 10))
-			sqlname += fmt.Sprintf(load_sqlarrayname, classType, i)
+		if isBlob(classField){
+			sqlvalue += fmt.Sprintf(load_sql, classVal.Bytes())
+			sqlname += fmt.Sprintf(load_sqlname, classType)
+		}else{
+			for i,v := range value{
+				sqlvalue += fmt.Sprintf(load_sqlarray, strconv.FormatUint(uint64(v), 10))
+				sqlname += fmt.Sprintf(load_sqlarrayname, classType, i)
+			}
 		}
 	case "[]int16":
 		value := []int16{}

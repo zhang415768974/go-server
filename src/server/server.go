@@ -1,14 +1,15 @@
 package main
 
 import (
-	"base"
+	"gonet/base"
 	"fmt"
 	"os"
 	"os/signal"
-	"server/account"
-	"server/common"
-	"server/netgate"
-	"server/world"
+	"gonet/server/account"
+	"gonet/server/common"
+	"gonet/server/monitor"
+	"gonet/server/netgate"
+	"gonet/server/world"
 )
 
 func main() {
@@ -16,9 +17,11 @@ func main() {
 	base.RegisterMessage(&common.ServerInfo{})
 	if args[1] == "account"{
 		account.SERVER.Init()
+	}else if args[1] == "monitor"{
+		monitor.SERVER.Init()
 	}else if args[1] == "netgate"{
 		netgate.SERVER.Init()
-	} else if args[1] == "world"{
+	}else if args[1] == "world"{
 		world.SERVER.Init()
 	}
 
